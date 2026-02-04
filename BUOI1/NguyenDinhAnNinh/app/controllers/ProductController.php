@@ -16,7 +16,23 @@ class ProductController {
     }
 
     public function list() {
-        $products = $this->products;
+        $products = $this->products; // Mặc định lấy hết
+
+        // Nếu có từ khóa tìm kiếm trên URL (Ví dụ: index.php?keyword=Iphone)
+        if (isset($_GET['keyword']) && !empty($_GET['keyword'])) {
+            $keyword = $_GET['keyword'];
+            $filteredProducts = [];
+            
+            // Lọc mảng
+            foreach ($products as $p) {
+                // Kiểm tra tên sản phẩm có chứa từ khóa không (stripos là tìm không phân biệt hoa thường)
+                if (stripos($p->getName(), $keyword) !== false) {
+                    $filteredProducts[] = $p;
+                }
+            }
+            $products = $filteredProducts; // Gán lại danh sách đã lọc
+        }
+
         include 'app/views/product/list.php';
     }
 
@@ -26,18 +42,22 @@ class ProductController {
             $name = $_POST['name'];
             $desc = $_POST['description'];
             $price = $_POST['price'];
-
+            
+            // XỬ LÝ ẢNH: Lấy từ form, nếu để trống thì lấy ảnh mặc định
+            $image = !empty($_POST['image']) ? $_POST['image'] : 'https://placehold.co/600x400?text=No+Image';
+            
             if (empty($name)) { $errors[] = "Tên không được để trống"; }
             if ($price <= 0) { $errors[] = "Giá phải lớn hơn 0"; }
 
             if (empty($errors)) {
                 $id = count($this->products) + 1;
-                $newProduct = new ProductModel($id, $name, $desc, $price);
+                
+                // Đã thêm biến $image vào hàm tạo
+                $newProduct = new ProductModel($id, $name, $desc, $price, $image);
                 
                 $this->products[] = $newProduct;
                 $_SESSION['products'] = $this->products;
 
-                // SỬA LẠI ĐOẠN NÀY: Phải nối chuỗi bằng dấu chấm (.)
                 header('Location: ' . WEB_ROOT . '/Product/list');
                 exit();
             }
@@ -74,6 +94,7 @@ class ProductController {
             $name = $_POST['name'];
             $desc = $_POST['description'];
             $price = $_POST['price'];
+            $image = $_POST['image']; // Lấy link ảnh từ form sửa
 
             if (empty($name)) { $errors[] = "Tên không được để trống"; }
             if ($price <= 0) { $errors[] = "Giá phải lớn hơn 0"; }
@@ -84,6 +105,7 @@ class ProductController {
                         $this->products[$key]->setName($name);
                         $this->products[$key]->setDescription($desc);
                         $this->products[$key]->setPrice($price);
+                        $this->products[$key]->setImage($image); // Cập nhật ảnh mới
                         break;
                     }
                 }
