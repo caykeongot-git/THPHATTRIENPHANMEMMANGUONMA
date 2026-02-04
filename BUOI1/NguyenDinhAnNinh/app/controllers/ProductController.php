@@ -16,21 +16,32 @@ class ProductController {
     }
 
     public function list() {
-        $products = $this->products; // Mặc định lấy hết
+        $products = $this->products;
 
-        // Nếu có từ khóa tìm kiếm trên URL (Ví dụ: index.php?keyword=Iphone)
+        // 1. TÌM KIẾM
         if (isset($_GET['keyword']) && !empty($_GET['keyword'])) {
             $keyword = $_GET['keyword'];
             $filteredProducts = [];
-            
-            // Lọc mảng
             foreach ($products as $p) {
-                // Kiểm tra tên sản phẩm có chứa từ khóa không (stripos là tìm không phân biệt hoa thường)
                 if (stripos($p->getName(), $keyword) !== false) {
                     $filteredProducts[] = $p;
                 }
             }
-            $products = $filteredProducts; // Gán lại danh sách đã lọc
+            $products = $filteredProducts;
+        }
+
+        // 2. SẮP XẾP (FEATURE MỚI)
+        if (isset($_GET['sort'])) {
+            $sort = $_GET['sort'];
+            usort($products, function($a, $b) use ($sort) {
+                switch ($sort) {
+                    case 'price-asc': return $a->getPrice() <=> $b->getPrice(); // Giá thấp -> cao
+                    case 'price-desc': return $b->getPrice() <=> $a->getPrice(); // Giá cao -> thấp
+                    case 'name-asc': return strcmp($a->getName(), $b->getName()); // Tên A-Z
+                    case 'name-desc': return strcmp($b->getName(), $a->getName()); // Tên Z-A
+                    default: return 0;
+                }
+            });
         }
 
         include 'app/views/product/list.php';
@@ -42,8 +53,6 @@ class ProductController {
             $name = $_POST['name'];
             $desc = $_POST['description'];
             $price = $_POST['price'];
-            
-            // XỬ LÝ ẢNH: Lấy từ form, nếu để trống thì lấy ảnh mặc định
             $image = !empty($_POST['image']) ? $_POST['image'] : 'https://placehold.co/600x400?text=No+Image';
             
             if (empty($name)) { $errors[] = "Tên không được để trống"; }
@@ -51,12 +60,13 @@ class ProductController {
 
             if (empty($errors)) {
                 $id = count($this->products) + 1;
-                
-                // Đã thêm biến $image vào hàm tạo
                 $newProduct = new ProductModel($id, $name, $desc, $price, $image);
                 
                 $this->products[] = $newProduct;
                 $_SESSION['products'] = $this->products;
+                
+                // Set thông báo Toast
+                $_SESSION['toast_msg'] = ['type' => 'success', 'message' => 'Thêm sản phẩm thành công!'];
 
                 header('Location: ' . WEB_ROOT . '/Product/list');
                 exit();
@@ -73,10 +83,15 @@ class ProductController {
             }
         }
         $_SESSION['products'] = array_values($this->products);
+        
+        // Set thông báo Toast
+        $_SESSION['toast_msg'] = ['type' => 'success', 'message' => 'Đã xóa sản phẩm!'];
+        
         header('Location: ' . WEB_ROOT . '/Product/list');
     }
     
     public function edit($id) {
+        // ... (Logic tìm sản phẩm giữ nguyên như cũ)
         $product = null;
         foreach ($this->products as $p) {
             if ($p->getId() == $id) {
@@ -84,17 +99,14 @@ class ProductController {
                 break;
             }
         }
-
-        if ($product === null) {
-            die("Sản phẩm không tồn tại!");
-        }
+        if ($product === null) { die("Sản phẩm không tồn tại!"); }
 
         $errors = [];
         if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $name = $_POST['name'];
             $desc = $_POST['description'];
             $price = $_POST['price'];
-            $image = $_POST['image']; // Lấy link ảnh từ form sửa
+            $image = $_POST['image'];
 
             if (empty($name)) { $errors[] = "Tên không được để trống"; }
             if ($price <= 0) { $errors[] = "Giá phải lớn hơn 0"; }
@@ -105,12 +117,16 @@ class ProductController {
                         $this->products[$key]->setName($name);
                         $this->products[$key]->setDescription($desc);
                         $this->products[$key]->setPrice($price);
-                        $this->products[$key]->setImage($image); // Cập nhật ảnh mới
+                        $this->products[$key]->setImage($image);
                         break;
                     }
                 }
                 
                 $_SESSION['products'] = $this->products;
+                
+                // Set thông báo Toast
+                $_SESSION['toast_msg'] = ['type' => 'info', 'message' => 'Cập nhật thành công!'];
+
                 header('Location: ' . WEB_ROOT . '/Product/list');
                 exit();
             }
